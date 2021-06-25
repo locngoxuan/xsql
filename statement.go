@@ -30,8 +30,6 @@ func (s *Statement) AppendSql(str string) *Statement {
 func (s *Statement) String() string {
 	defer s.b.Reset()
 	numberOfValues := len(s.params)
-	fmt.Println(s.b.String())
-	fmt.Println(strToIntf(dialect.Parameterizie(numberOfValues)))
 	return fmt.Sprintf(s.b.String(), strToIntf(dialect.Parameterizie(numberOfValues))...)
 }
 

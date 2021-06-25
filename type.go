@@ -1,6 +1,7 @@
 package xsql
 
 import (
+	"database/sql"
 	"fmt"
 	"reflect"
 	"time"
@@ -20,8 +21,97 @@ type BaseModel struct {
 	Updated time.Time `column:"updated"`
 }
 
+type DbOption struct {
+	*sql.DB
+	Driver       string
+	DSN          string
+	MaxOpenConns int
+	MaxIdleConns int
+	MaxIdleTime  time.Duration
+	MaxLifeTime  time.Duration
+	Dialect
+	Logger
+}
+
 type ResultMapper struct {
 	reflect.Type
 	Col2Field map[string]string
 	Field2Col map[string]string
+}
+
+func getMapper(t reflect.Type) (rm ResultMapper) {
+	rm.Type = t
+	if rm.Type.Kind() == reflect.Ptr {
+		rm.Type = rm.Type.Elem()
+	}
+	m := make(map[string]string)
+	recursiveScan(rm.Type, m)
+	rm.Col2Field = m
+	rm.Field2Col = make(map[string]string)
+	for c, f := range m {
+		rm.Field2Col[f] = c
+	}
+	return
+}
+
+type Logger interface {
+	// Debug uses fmt.Sprint to construct and log a message.
+	Debug(args ...interface{})
+
+	// Info uses fmt.Sprint to construct and log a message.
+	Info(args ...interface{})
+
+	// Warn uses fmt.Sprint to construct and log a message.
+	Warn(args ...interface{})
+
+	// Error uses fmt.Sprint to construct and log a message.
+	Error(args ...interface{})
+
+	// Panic uses fmt.Sprint to construct and log a message, then panics.
+	Panic(args ...interface{})
+
+	// Fatal uses fmt.Sprint to construct and log a message, then calls os.Exit.
+	Fatal(args ...interface{})
+
+	// Debugf uses fmt.Sprintf to log a templated message.
+	Debugf(template string, args ...interface{})
+
+	// Infof uses fmt.Sprintf to log a templated message.
+	Infof(template string, args ...interface{})
+
+	// Warnf uses fmt.Sprintf to log a templated message.
+	Warnf(template string, args ...interface{})
+
+	// Errorf uses fmt.Sprintf to log a templated message.
+	Errorf(template string, args ...interface{})
+
+	// Panicf uses fmt.Sprintf to log a templated message, then panics.
+	Panicf(template string, args ...interface{})
+
+	// Fatalf uses fmt.Sprintf to log a templated message, then calls os.Exit.
+	Fatalf(template string, args ...interface{})
+
+	// Debugw logs a message with some additional context. The variadic key-value
+	// pairs are treated as they are in With.
+	Debugw(msg string, keysAndValues ...interface{})
+
+	// Infow logs a message with some additional context. The variadic key-value
+	// pairs are treated as they are in With.
+	Infow(msg string, keysAndValues ...interface{})
+
+	// Warnw logs a message with some additional context. The variadic key-value
+	// pairs are treated as they are in With.
+	Warnw(msg string, keysAndValues ...interface{})
+
+	// Errorw logs a message with some additional context. The variadic key-value
+	// pairs are treated as they are in With.
+	Errorw(msg string, keysAndValues ...interface{})
+
+	// Panicw logs a message with some additional context, then panics. The
+	// variadic key-value pairs are treated as they are in With.
+	Panicw(msg string, keysAndValues ...interface{})
+
+	// Fatalw logs a message with some additional context, then calls os.Exit. The
+	// variadic key-value pairs are treated as they are in With.
+	Fatalw(msg string, keysAndValues ...interface{})
 }
