@@ -23,7 +23,7 @@ func Open(opt DbOption) error {
 	} else {
 		db, err = sql.Open(opt.Driver, opt.DSN)
 		if err != nil {
-			return err
+			return fmt.Errorf(`failed to open db connection %v`, err)
 		}
 		db.SetMaxOpenConns(opt.MaxOpenConns)
 		db.SetMaxIdleConns(opt.MaxIdleConns)

@@ -210,23 +210,16 @@ func Query(statement Statement, output interface{}) error {
 	return err
 }
 
-func queryTx(tx *sql.Tx, sql string, params ...interface{}) (*sql.Rows, error) {
+func queryTx(tx *sql.Tx, sql string, params ...interface{}) (*sql.Stmt, *sql.Rows, error) {
 	stmt, err := tx.Prepare(sql)
 	if err != nil {
-		_ = tx.Rollback()
-		return nil, err
+		return nil, nil, err
 	}
-
-	defer func() {
-		_ = stmt.Close()
-	}()
-
 	rows, err := stmt.Query(params...)
 	if err != nil {
-		_ = tx.Rollback()
-		return nil, err
+		return nil, nil, err
 	}
-	return rows, err
+	return stmt, rows, nil
 }
 
 func QueryTx(tx *sql.Tx, statement Statement, output interface{}) error {
@@ -242,13 +235,12 @@ func QueryTx(tx *sql.Tx, statement Statement, output interface{}) error {
 
 	valType = valType.Elem()
 	rm := getMapper(valType)
-
 	val := reflect.ValueOf(output)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
 
-	rows, err := queryTx(tx, statement.String(), statement.params...)
+	stmt, rows, err := queryTx(tx, statement.String(), statement.params...)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -256,6 +248,7 @@ func QueryTx(tx *sql.Tx, statement Statement, output interface{}) error {
 
 	defer func() {
 		_ = rows.Close()
+		_ = stmt.Close()
 	}()
 
 	cols, err := rows.Columns()
@@ -321,7 +314,7 @@ func QueryOneTx(tx *sql.Tx, statement Statement, output interface{}) error {
 		_ = stmt.Close()
 	}()
 
-	rows, err := queryTx(tx, statement.String(), statement.params...)
+	stmt, rows, err := queryTx(tx, statement.String(), statement.params...)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -329,6 +322,7 @@ func QueryOneTx(tx *sql.Tx, statement Statement, output interface{}) error {
 
 	defer func() {
 		_ = rows.Close()
+		_ = stmt.Close()
 	}()
 
 	cols, err := rows.Columns()
