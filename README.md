@@ -2,40 +2,70 @@
 
 ## Introduction
 
+`xsql` is a simple library in order to support us build up a application which is able to switch among database vendor easily by configuring `xsql.Dialect`.
+
+Purpose of `xsql.Dialect` is providing an interface for replacing `name place holder` by specific parameter place holder of each database vendor. 
+
+Even `xsql` does not intend to be built up as an ORM library, but it also supports: 
+
+- Mapping between column and field of struct
+- C in `CRUD` - you can save an item into database by calling `xsql.Insert(interface)` instead of writting insert sql statement
+
 ## Usage
+
+```bash
+$ go get -d -v github.com/locngoxuan/xsql
+```
+
+## Example
 ```go
 package main
 
 import (
 	"fmt"
 	"log"
+	"time"
 
 	_ "github.com/lib/pq"
 	"github.com/locngoxuan/xsql"
 )
 
-type Test struct {
+type ExampleTable struct {
 	xsql.BaseModel `column:"__embedded"`
+	Text           *string `column:"text"`
+}
+
+func (ExampleTable) TableName() string {
+	return "tbl_example"
 }
 
 func main() {
 	err := xsql.Open(xsql.DbOption{
 		Driver:       "postgres",
 		DSN:          "postgresql://example:example@localhost:5432/example?sslmode=disable",
-		MaxOpenConns: 2,
-		MaxIdleConns: 1,
+		MaxOpenConns: 5,
+		MaxIdleTime:  1,
 		Dialect:      xsql.PostgreDialect{},
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	var items []Test
-	stmt := xsql.NewStmt(`SELECT id, created, updated FROM tests WHERE id = %s`).With(1)
-	err = xsql.Query(*stmt, &items)
-	if err != nil {
-		log.Fatalln(fmt.Sprintf(`failed to execute query %v`, err))
+	//insert new object
+	s := "Item with id = 1"
+	example := ExampleTable{
+		BaseModel: xsql.BaseModel{
+			Id:      1,
+			Created: time.Now(),
+			Updated: time.Now(),
+		},
+		Text: &s,
 	}
-	fmt.Println(items[0])
+	err = xsql.Insert(example)
+	if err != nil {
+		log.Fatalln(err)
+	}
 }
 ```
+
+> For more tutorial, you can figure out at [example](https://github.com/locngoxuan/xsql/tree/main/example)

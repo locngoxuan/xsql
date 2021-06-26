@@ -11,7 +11,7 @@ import (
 
 type ExampleTable struct {
 	xsql.BaseModel `column:"__embedded"`
-	Text           string `column:"text"`
+	Text           *string `column:"text"`
 }
 
 func (ExampleTable) TableName() string {
@@ -32,13 +32,14 @@ func main() {
 
 	//insert new object
 	{
+		s := "Item with id = 1"
 		example := ExampleTable{
 			BaseModel: xsql.BaseModel{
 				Id:      1,
 				Created: time.Now(),
 				Updated: time.Now(),
 			},
-			Text: "Item with id = 1",
+			Text: &s,
 		}
 		err = xsql.Insert(example)
 		if err != nil {
@@ -50,13 +51,14 @@ func main() {
 	{
 		var examples []ExampleTable
 		for i := 0; i < 100; i++ {
+			s := fmt.Sprintf("Item with id = %d", i+2)
 			examples = append(examples, ExampleTable{
 				BaseModel: xsql.BaseModel{
 					Id:      int64(i + 2),
 					Created: time.Now(),
 					Updated: time.Now(),
 				},
-				Text: fmt.Sprintf("Item with id = %d", i+2),
+				Text: &s,
 			})
 		}
 		err = xsql.InsertBatch(examples, 10)
@@ -80,7 +82,7 @@ func main() {
 			AppendSql(`WHERE id IN (:ids)`).
 			With(map[string]interface{}{
 				"ids":  []int{1, 2, 3, 4},
-				"text": "Just 'Item'",
+				"text": nil,
 			}).
 			ExpectedResult(4).
 			Get())
