@@ -7,11 +7,16 @@ import (
 
 // Delete execute a sepecified delete statement
 func Delete(statement Statement) (int64, error) {
-	tx, err := db.Begin()
+	return DeleteContext(context.Background(), statement)
+}
+
+// Delete execute a sepecified delete statement
+func DeleteContext(ctx context.Context, statement Statement) (int64, error) {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
-	i, err := DeleteTx(tx, statement)
+	i, err := DeleteTxContext(ctx, tx, statement)
 	if err == nil {
 		err = tx.Commit()
 		if err != nil {

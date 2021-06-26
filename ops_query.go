@@ -9,11 +9,16 @@ import (
 
 // Query return a slice of records
 func Query(statement Statement, output interface{}) error {
-	tx, err := db.Begin()
+	return QueryContext(context.Background(), statement, output)
+}
+
+// Query return a slice of records
+func QueryContext(ctx context.Context, statement Statement, output interface{}) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	err = QueryTx(tx, statement, output)
+	err = QueryTxContext(ctx, tx, statement, output)
 	if err == nil {
 		_ = tx.Commit()
 	}
@@ -95,11 +100,16 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 
 // QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound
 func QueryOne(statement Statement, output interface{}) error {
-	tx, err := db.Begin()
+	return QueryContext(context.Background(), statement, output)
+}
+
+// QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound
+func QueryOneContext(ctx context.Context, statement Statement, output interface{}) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	err = QueryOneTx(tx, statement, output)
+	err = QueryOneTxContext(ctx, tx, statement, output)
 	if err == nil {
 		_ = tx.Commit()
 	}

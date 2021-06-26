@@ -25,6 +25,23 @@ func Insert(model interface{}) error {
 	return err
 }
 
+// Insert adds given interface into corresponding table
+func InsertContext(ctx context.Context, model interface{}) error {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	err = InsertTxContext(ctx, tx, model)
+	if err == nil {
+		err = tx.Commit()
+		if err != nil {
+			_ = tx.Rollback()
+			return err
+		}
+	}
+	return err
+}
+
 // Insert adds given interface into corresponding table within a transaction
 func InsertTx(tx *sql.Tx, model interface{}) error {
 	return InsertTxContext(context.Background(), tx, model)
@@ -67,11 +84,16 @@ func InsertTxContext(ctx context.Context, tx *sql.Tx, model interface{}) error {
 
 // InsertBatch creates a batch of item in corresponding table of that interface.
 func InsertBatch(model interface{}, batchSize int) error {
-	tx, err := db.Begin()
+	return InsertBatchContext(context.Background(), model, batchSize)
+}
+
+// InsertBatch creates a batch of item in corresponding table of that interface.
+func InsertBatchContext(ctx context.Context, model interface{}, batchSize int) error {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
-	err = InsertBatchTx(tx, model, batchSize)
+	err = InsertBatchTxContext(ctx, tx, model, batchSize)
 	if err == nil {
 		err = tx.Commit()
 		if err != nil {

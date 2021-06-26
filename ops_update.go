@@ -7,11 +7,16 @@ import (
 
 // Update execute a sepecified update statement
 func Update(statement Statement) (int64, error) {
-	tx, err := db.Begin()
+	return UpdateContext(context.Background(), statement)
+}
+
+// Update execute a sepecified update statement
+func UpdateContext(ctx context.Context, statement Statement) (int64, error) {
+	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
 	}
-	i, err := UpdateTx(tx, statement)
+	i, err := UpdateTxContext(ctx, tx, statement)
 	if err == nil {
 		err = tx.Commit()
 		if err != nil {
