@@ -1,0 +1,4 @@
+github.com/lib/pq v1.10.2 h1:AqzbZs4ZoCBp+GtejcpCpcxM3zlSMx29dXbUSeVtJb8=
+github.com/lib/pq v1.10.2/go.mod h1:AlVN5x4E4T544tWzH6hKfbfQvm3HdbOxrmggDNAPY9o=
+github.com/locngoxuan/xsql v0.0.0-20210626055054-72e4d3d92ed1 h1:I8dYgL0wHfAxgOCl5Kvo4K1IpZOYX5aUUfI/5EG7p1k=
+github.com/locngoxuan/xsql v0.0.0-20210626055054-72e4d3d92ed1/go.mod h1:6TAVCZIpqrxCSMBDBjj0rkN86Wp90RhaXiazbxC+Wqw=

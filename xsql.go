@@ -1,6 +1,7 @@
 package xsql
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 )
@@ -13,6 +14,10 @@ var (
 
 func BeginTx() (*sql.Tx, error) {
 	return db.Begin()
+}
+
+func BeginTxContext(ctx context.Context) (*sql.Tx, error) {
+	return db.BeginTx(ctx, nil)
 }
 
 func Open(opt DbOption) error {

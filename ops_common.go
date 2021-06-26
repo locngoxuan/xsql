@@ -5,11 +5,12 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"time"
 )
 
 // ExecuteTxContext execute any statement within a transaction and an specific context
 func ExecuteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
-	return execTxContext(ctx, tx, statement.String(), statement.params...)
+	return execTxContext(ctx, tx, statement.String(), statement.GetParams()...)
 }
 
 // Count returns the total items in corresponding table of given interface
@@ -22,6 +23,26 @@ func CountContext(ctx context.Context, model interface{}) (int64, error) {
 	if model == nil {
 		return 0, fmt.Errorf("given model is nil")
 	}
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	count, err := CountTxContext(ctx, tx, model)
+	if err != nil {
+		return 0, err
+	}
+	_ = tx.Commit()
+	return int64(count), nil
+}
+
+func CountTx(tx *sql.Tx, model interface{}) (int64, error) {
+	return CountTxContext(context.Background(), tx, model)
+}
+
+func CountTxContext(ctx context.Context, tx *sql.Tx, model interface{}) (int64, error) {
+	if model == nil {
+		return 0, fmt.Errorf("given model is nil")
+	}
 	val := reflect.ValueOf(model)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -29,11 +50,18 @@ func CountContext(ctx context.Context, model interface{}) (int64, error) {
 	tableName := getTableName(val)
 
 	sql := fmt.Sprintf(`SELECT count(id) FROM %s WHERE 1=1`, tableName)
-	logger.Infow("xsql - count total items in table", "id", ctx.Value("id"), "stmt", sql)
-	stmt, err := db.PrepareContext(ctx, sql)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - count total items in table", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(), "stmt", sql)
+	}(time.Now())
+	stmt, err := tx.PrepareContext(ctx, sql)
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		_ = stmt.Close()
+	}()
 	row := stmt.QueryRowContext(ctx)
 	if row.Err() != nil {
 		return 0, row.Err()
@@ -54,13 +82,16 @@ func CountWithCond(statement Statement) (int64, error) {
 // CountWithCondContext returns the number of item fit with given statement
 func CountWithCondContext(ctx context.Context, statement Statement) (int64, error) {
 	sql := statement.String()
-	logger.Infow("xsql - count with condition",
-		"id", ctx.Value("id"), "stmt", sql, "params", statement.params)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - count with condition", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(), "stmt", sql, "params", statement.params)
+	}(time.Now())
 	stmt, err := db.PrepareContext(ctx, sql)
 	if err != nil {
 		return 0, err
 	}
-	row := stmt.QueryRowContext(ctx, statement.params...)
+	row := stmt.QueryRowContext(ctx, statement.GetParams()...)
 	if row.Err() != nil {
 		return 0, row.Err()
 	}

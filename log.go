@@ -1,6 +1,8 @@
 package xsql
 
-import "log"
+import (
+	"log"
+)
 
 type DefaultLogger struct {
 }
@@ -69,29 +71,35 @@ func (s DefaultLogger) Fatalf(template string, args ...interface{}) {
 // pairs are treated as they are in With.
 //
 func (s DefaultLogger) Debugw(msg string, keysAndValues ...interface{}) {
+	log.Println(msg, keysAndValues)
 }
 
 // Infow logs a message with some additional context. The variadic key-value
 // pairs are treated as they are in With.
 func (s DefaultLogger) Infow(msg string, keysAndValues ...interface{}) {
+	log.Println(msg, keysAndValues)
 }
 
 // Warnw logs a message with some additional context. The variadic key-value
 // pairs are treated as they are in With.
 func (s DefaultLogger) Warnw(msg string, keysAndValues ...interface{}) {
+	log.Println(msg, keysAndValues)
 }
 
 // Errorw logs a message with some additional context. The variadic key-value
 // pairs are treated as they are in With.
 func (s DefaultLogger) Errorw(msg string, keysAndValues ...interface{}) {
+	log.Println(msg, keysAndValues)
 }
 
 // Panicw logs a message with some additional context, then panics. The
 // variadic key-value pairs are treated as they are in With.
 func (s DefaultLogger) Panicw(msg string, keysAndValues ...interface{}) {
+	log.Panicln(msg, keysAndValues)
 }
 
 // Fatalw logs a message with some additional context, then calls os.Exit. The
 // variadic key-value pairs are treated as they are in With.
 func (s DefaultLogger) Fatalw(msg string, keysAndValues ...interface{}) {
+	log.Fatalln(msg, keysAndValues)
 }

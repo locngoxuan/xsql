@@ -3,8 +3,8 @@ package xsql
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"reflect"
+	"time"
 )
 
 // Update execute a sepecified update statement
@@ -43,8 +43,12 @@ func UpdateTx(tx *sql.Tx, statement Statement) (int64, error) {
 
 // Update execute a sepecified update statement within a transaction and an specific context
 func UpdateTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
-	logger.Infow("xsql - execute update statement", "id", ctx.Value("id"),
-		"stmt", statement.String(), "params", statement.params)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - execute update statement", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(),
+			"stmt", statement.String(), "params", statement.params)
+	}(time.Now())
 	return ExecuteTxContext(ctx, tx, statement)
 }
 
@@ -82,13 +86,16 @@ func UpdatesTx(tx *sql.Tx, statement Statement) (int64, error) {
 func UpdatesTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
 	val := reflect.ValueOf(statement.params)
 	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		return 0, fmt.Errorf(`argument must be either array or slice`)
+		return 0, ErrArgNotArrayAndSlice
 	}
 	totalItem := val.Len()
 	rowsAffected := int64(0)
 	for i := 0; i < totalItem; i++ {
-		newStmt := NewStmt(statement.RawSql()).With(val.Index(i).Interface().([]interface{})...)
-		i, err := execTxContext(ctx, tx, newStmt.String(), newStmt.params...)
+		if val.Index(i).Kind() != reflect.Slice && val.Index(i).Kind() != reflect.Array {
+			return 0, ErrArgNotArrayAndSlice
+		}
+		newStmt := NewStmt(statement.RawSql()).With(val.Index(i).Interface().(map[string]interface{}))
+		i, err := execTxContext(ctx, tx, newStmt.String(), newStmt.GetParams()...)
 		if err != nil {
 			_ = tx.Rollback()
 			return 0, err

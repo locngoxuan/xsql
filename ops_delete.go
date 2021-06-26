@@ -3,6 +3,7 @@ package xsql
 import (
 	"context"
 	"database/sql"
+	"time"
 )
 
 // Delete execute a sepecified delete statement
@@ -41,7 +42,11 @@ func DeleteTx(tx *sql.Tx, statement Statement) (int64, error) {
 
 // Delete execute a sepecified delete statement within a transaction and an specific context
 func DeleteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
-	logger.Infow("xsql - execute delete statement", "id", ctx.Value("id"),
-		"stmt", statement.String(), "params", statement.params)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - execute delete statement", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(),
+			"stmt", statement.String(), "params", statement.params)
+	}(time.Now())
 	return ExecuteTxContext(ctx, tx, statement)
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"reflect"
 	"strings"
+	"time"
 )
 
 // Insert adds given interface into corresponding table
@@ -54,6 +55,9 @@ func InsertTxContext(ctx context.Context, tx *sql.Tx, model interface{}) error {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
 	}
+	if val.Kind() == reflect.Array || val.Kind() == reflect.Slice {
+		return ErrArgIsArrayOrSlice
+	}
 	tableName := getTableName(val)
 	columns, fieldNames := getColumnsAndFielNames(val.Type())
 	if len(columns) != len(fieldNames) {
@@ -64,15 +68,21 @@ func InsertTxContext(ctx context.Context, tx *sql.Tx, model interface{}) error {
 		args[i] = val.FieldByName(fieldName).Interface()
 	}
 
-	sqlScript := fmt.Sprintf(`INSERT INTO %s(%s) VALUES %s`,
+	sqlScript := fmt.Sprintf(`INSERT INTO %s(%s) VALUES (:value)`,
 		tableName,
 		strings.Join(columns, ","),
-		strRepeat("(", ")", "%s", ",", len(columns)),
 	)
 
-	logger.Infow("xsql - execute insert statement", "id", ctx.Value("id"),
-		"stmt", sqlScript, "params", args)
-	insertCmd := NewStmt(sqlScript).With(args...)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - execute insert statement", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(),
+			"stmt", sqlScript, "params", args)
+	}(time.Now())
+
+	insertCmd := NewStmt(sqlScript).With(map[string]interface{}{
+		"value": args,
+	})
 	i, err := ExecuteTxContext(ctx, tx, *insertCmd)
 	if err != nil {
 		return err
@@ -117,15 +127,16 @@ func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, ba
 	val := reflect.ValueOf(model)
 	if val.Kind() != reflect.Array && val.Kind() != reflect.Slice {
 		_ = tx.Rollback()
-		return fmt.Errorf("input is not either array or slice")
+		return ErrArgNotArrayAndSlice
 	}
 
 	if val.Len() == 0 {
 		return nil
 	}
 
-	tableName := getTableName(val)
-	columns, fieldNames := getColumnsAndFielNames(val.Type())
+	fe := val.Index(0)
+	tableName := getTableName(fe)
+	columns, fieldNames := getColumnsAndFielNames(fe.Type())
 	if len(columns) != len(fieldNames) {
 		return fmt.Errorf(`size of column and size of field does not match`)
 	}
@@ -136,9 +147,13 @@ func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, ba
 	sqlColumns := strings.Join(columns, ",")
 	sqlParamOfEachItems := strRepeat("(", ")", "%s", ",", len(columns))
 
-	logger.Infow("xsql - execute insert-batch statement", "id", ctx.Value("id"),
-		"stmt", fmt.Sprintf(`INSERT INTO %s(%s) VALUES %s`, tableName, sqlColumns, sqlParamOfEachItems),
-		"total_item", val.Len(), "batch_size", batchSize)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - execute insert-batch statement", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(),
+			"stmt", fmt.Sprintf(`INSERT INTO %s(%s) VALUES (:value)`, tableName, sqlColumns),
+			"total_item", val.Len(), "batch_size", batchSize)
+	}(time.Now())
 
 	for _, batch := range insertedBatches {
 		values := make([]interface{}, len(batch)*numberOfField)

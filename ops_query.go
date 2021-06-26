@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"reflect"
+	"time"
 )
 
 // Query return a slice of records
@@ -57,9 +58,13 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 	}
 
 	sql := statement.String()
-	logger.Infow("xsql - execute query statement", "id", ctx.Value("id"),
-		"stmt", sql, "params", statement.params)
-	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.params...)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - execute query statement", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(),
+			"stmt", sql, "params", statement.params)
+	}(time.Now())
+	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.GetParams()...)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
@@ -151,9 +156,13 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 	}()
 
 	sql := statement.String()
-	logger.Infow("xsql - execute query-one statement", "id", ctx.Value("id"),
-		"stmt", sql, "params", statement.params)
-	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.params...)
+	defer func(start time.Time) {
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - execute query-one statement", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(),
+			"stmt", sql, "params", statement.params)
+	}(time.Now())
+	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.GetParams()...)
 	if err != nil {
 		_ = tx.Rollback()
 		return err
