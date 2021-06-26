@@ -15,14 +15,15 @@ func Insert(model interface{}) error {
 		return err
 	}
 	err = InsertTx(tx, model)
-	if err == nil {
-		err = tx.Commit()
-		if err != nil {
-			_ = tx.Rollback()
-			return err
-		}
+	if err != nil {
+		return err
 	}
-	return err
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return nil
 }
 
 // Insert adds given interface into corresponding table
@@ -77,7 +78,7 @@ func InsertTxContext(ctx context.Context, tx *sql.Tx, model interface{}) error {
 		return err
 	}
 	if i == 0 {
-		return fmt.Errorf(`failed to insert new record (row affected = 0)`)
+		return ErrWrongNumberInserted
 	}
 	return nil
 }
@@ -94,14 +95,15 @@ func InsertBatchContext(ctx context.Context, model interface{}, batchSize int) e
 		return err
 	}
 	err = InsertBatchTxContext(ctx, tx, model, batchSize)
-	if err == nil {
-		err = tx.Commit()
-		if err != nil {
-			_ = tx.Rollback()
-			return err
-		}
+	if err != nil {
+		return err
 	}
-	return err
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return err
+	}
+	return nil
 }
 
 // InsertBatch creates a batch of item in corresponding table of that interface within a transaction
@@ -159,7 +161,7 @@ func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, ba
 		}
 		if int(i) != len(batch) {
 			_ = tx.Rollback()
-			return fmt.Errorf("can not insert new records in table %s", tableName)
+			return ErrWrongNumberInserted
 		}
 	}
 	return nil

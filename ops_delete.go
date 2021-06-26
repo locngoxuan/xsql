@@ -17,14 +17,21 @@ func DeleteContext(ctx context.Context, statement Statement) (int64, error) {
 		return 0, err
 	}
 	i, err := DeleteTxContext(ctx, tx, statement)
-	if err == nil {
-		err = tx.Commit()
-		if err != nil {
+	if err != nil {
+		return 0, err
+	}
+	if statement.expectedRows > 0 {
+		if i != statement.expectedRows {
 			_ = tx.Rollback()
-			return 0, err
+			return 0, ErrWrongNumberAffectedRow
 		}
 	}
-	return i, err
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return 0, err
+	}
+	return i, nil
 }
 
 // Delete execute a sepecified delete statement within a transaction

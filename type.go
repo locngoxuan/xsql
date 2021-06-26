@@ -8,7 +8,9 @@ import (
 )
 
 var (
-	ErrNotFound = fmt.Errorf(`record not found`)
+	ErrNotFound               = fmt.Errorf(`record not found`)
+	ErrWrongNumberAffectedRow = fmt.Errorf(`wrong number affected rows`)
+	ErrWrongNumberInserted    = fmt.Errorf(`number of inserted recods is smaller than expectation`)
 )
 
 type Dialect interface {

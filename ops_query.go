@@ -19,10 +19,11 @@ func QueryContext(ctx context.Context, statement Statement, output interface{}) 
 		return err
 	}
 	err = QueryTxContext(ctx, tx, statement, output)
-	if err == nil {
-		_ = tx.Commit()
+	if err != nil {
+		return err
 	}
-	return err
+	_ = tx.Commit()
+	return nil
 }
 
 // Query return a slice of records. By giving a specific transaction, it may get a latest records
@@ -110,10 +111,11 @@ func QueryOneContext(ctx context.Context, statement Statement, output interface{
 		return err
 	}
 	err = QueryOneTxContext(ctx, tx, statement, output)
-	if err == nil {
-		_ = tx.Commit()
+	if err != nil {
+		return err
 	}
-	return err
+	_ = tx.Commit()
+	return nil
 }
 
 // QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound

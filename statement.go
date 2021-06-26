@@ -7,24 +7,45 @@ import (
 )
 
 type Statement struct {
-	b      strings.Builder
-	params []interface{}
+	b            strings.Builder
+	lastRune     rune
+	expectedRows int64
+	params       []interface{}
 }
 
 func NewStmt(str string) *Statement {
 	s := &Statement{
-		b:      strings.Builder{},
-		params: make([]interface{}, 0),
+		b:        strings.Builder{},
+		params:   make([]interface{}, 0),
+		lastRune: 0,
 	}
 	return s.AppendSql(str)
+}
+
+func (s *Statement) ExpectedResult(i int) *Statement {
+	s.expectedRows = int64(i)
+	return s
+}
+
+func (s *Statement) Get() Statement {
+	return *s
 }
 
 func (s *Statement) AppendSql(str string) *Statement {
 	if str == "" {
 		return s
 	}
+	// if last rune != " "
+	if s.lastRune != rune(' ') {
+		_, _ = s.b.WriteString(" ")
+	}
 	_, _ = s.b.WriteString(str)
+	s.lastRune = rune(str[len(str)-1:][0])
 	return s
+}
+
+func (s *Statement) RawSql() string {
+	return s.b.String()
 }
 
 func (s *Statement) String() string {
