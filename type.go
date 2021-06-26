@@ -39,21 +39,6 @@ type ResultMapper struct {
 	Field2Col map[string]string
 }
 
-func getMapper(t reflect.Type) (rm ResultMapper) {
-	rm.Type = t
-	if rm.Type.Kind() == reflect.Ptr {
-		rm.Type = rm.Type.Elem()
-	}
-	m := make(map[string]string)
-	recursiveScan(rm.Type, m)
-	rm.Col2Field = m
-	rm.Field2Col = make(map[string]string)
-	for c, f := range m {
-		rm.Field2Col[f] = c
-	}
-	return
-}
-
 type Logger interface {
 	// Debug uses fmt.Sprint to construct and log a message.
 	Debug(args ...interface{})

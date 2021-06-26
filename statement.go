@@ -28,7 +28,6 @@ func (s *Statement) AppendSql(str string) *Statement {
 }
 
 func (s *Statement) String() string {
-	defer s.b.Reset()
 	numberOfValues := len(s.params)
 	return fmt.Sprintf(s.b.String(), strToIntf(dialect.Parameterizie(numberOfValues))...)
 }

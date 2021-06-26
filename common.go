@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// strRepeat create a new string with repated pattern
 func strRepeat(begin, end, pattern, sep string, size int) string {
 	if size <= 0 {
 		return ""
@@ -25,6 +26,8 @@ func strRepeat(begin, end, pattern, sep string, size int) string {
 	return b.String()
 }
 
+// recursiveScan is a recursive action which tries to scan all fields
+// from an interface for building map between column and field name
 func recursiveScan(v reflect.Type, fields map[string]string) {
 	for i := 0; i < v.NumField(); i++ {
 		column := v.Field(i).Tag.Get("column")
@@ -50,7 +53,24 @@ func recursiveScan(v reflect.Type, fields map[string]string) {
 	}
 }
 
-func getTableInfo(valType reflect.Type) ([]string, []string) {
+// getMapper returns ResultMapper of given reflect.Type
+func getMapper(t reflect.Type) (rm ResultMapper) {
+	rm.Type = t
+	if rm.Type.Kind() == reflect.Ptr {
+		rm.Type = rm.Type.Elem()
+	}
+	m := make(map[string]string)
+	recursiveScan(rm.Type, m)
+	rm.Col2Field = m
+	rm.Field2Col = make(map[string]string)
+	for c, f := range m {
+		rm.Field2Col[f] = c
+	}
+	return
+}
+
+// getColumnsAndFielNames returns columns amd fields of reflect.Type
+func getColumnsAndFielNames(valType reflect.Type) ([]string, []string) {
 	if valType.Kind() == reflect.Ptr {
 		valType = valType.Elem()
 	}
@@ -67,6 +87,7 @@ func getTableInfo(valType reflect.Type) ([]string, []string) {
 	return columns, fieldNames
 }
 
+// getTableName returns name of corresponding table of value of given interface
 func getTableName(val reflect.Value) string {
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -81,6 +102,7 @@ func getTableName(val reflect.Value) string {
 	}
 }
 
+// strToIntf converts given slice string to slice interface
 func strToIntf(s []string) []interface{} {
 	b := make([]interface{}, len(s))
 	for i, v := range s {
@@ -89,6 +111,7 @@ func strToIntf(s []string) []interface{} {
 	return b
 }
 
+// chunk splits a huge set into many smaller sets
 func chunk(list reflect.Value, size int) [][]reflect.Value {
 	rs := make([][]reflect.Value, 0)
 	totalItem := list.Len()
