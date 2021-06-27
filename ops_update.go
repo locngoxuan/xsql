@@ -3,7 +3,6 @@ package xsql
 import (
 	"context"
 	"database/sql"
-	"reflect"
 	"time"
 )
 
@@ -52,11 +51,11 @@ func UpdateTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int6
 	return ExecuteTxContext(ctx, tx, statement)
 }
 
-func Updates(statement Statement) (int64, error) {
+func Updates(statement Statement, args ...map[string]interface{}) (int64, error) {
 	return UpdatesContext(context.Background(), statement)
 }
 
-func UpdatesContext(ctx context.Context, statement Statement) (int64, error) {
+func UpdatesContext(ctx context.Context, statement Statement, args ...map[string]interface{}) (int64, error) {
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
 		return 0, err
@@ -79,28 +78,26 @@ func UpdatesContext(ctx context.Context, statement Statement) (int64, error) {
 	return i, nil
 }
 
-func UpdatesTx(tx *sql.Tx, statement Statement) (int64, error) {
+func UpdatesTx(tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
 	return UpdateTxContext(context.Background(), tx, statement)
 }
 
-func UpdatesTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
-	val := reflect.ValueOf(statement.params)
-	if val.Kind() != reflect.Slice && val.Kind() != reflect.Array {
-		return 0, ErrArgNotArrayAndSlice
-	}
-	totalItem := val.Len()
+func UpdatesTxContext(ctx context.Context, tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
 	rowsAffected := int64(0)
-	for i := 0; i < totalItem; i++ {
-		if val.Index(i).Kind() != reflect.Slice && val.Index(i).Kind() != reflect.Array {
-			return 0, ErrArgNotArrayAndSlice
-		}
-		newStmt := NewStmt(statement.RawSql()).With(val.Index(i).Interface().(map[string]interface{}))
-		i, err := execTxContext(ctx, tx, newStmt.String(), newStmt.GetParams()...)
+	for _, arg := range args {
+		stmt := NewStmt(statement.RawSql()).With(arg)
+		i, err := UpdateTxContext(ctx, tx, stmt.Get())
 		if err != nil {
 			_ = tx.Rollback()
 			return 0, err
 		}
-		rowsAffected = rowsAffected + i
+		rowsAffected += i
 	}
-	return rowsAffected, nil
+	if statement.expectedRows > 0 {
+		if rowsAffected != statement.expectedRows {
+			_ = tx.Rollback()
+			return 0, ErrWrongNumberAffectedRow
+		}
+	}
+	return int64(rowsAffected), nil
 }
