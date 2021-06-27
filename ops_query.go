@@ -40,6 +40,7 @@ func QueryTx(tx *sql.Tx, statement Statement, output interface{}) error {
 // for the execution of the returned statement. The returned statement
 // will run in the transaction context.
 func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output interface{}) error {
+	start := time.Now()
 	valType := reflect.TypeOf(output)
 	if valType.Kind() == reflect.Ptr {
 		valType = valType.Elem()
@@ -63,7 +64,7 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 		logger.Infow("xsql - execute query statement", "id", ctx.Value("id"),
 			"elapsed_time", elapsed.Milliseconds(),
 			"stmt", sql, "params", statement.params)
-	}(time.Now())
+	}(start)
 	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.GetParams()...)
 	if err != nil {
 		_ = tx.Rollback()
@@ -134,6 +135,7 @@ func QueryOneTx(tx *sql.Tx, statement Statement, output interface{}) error {
 //
 // This action is excuted within a transaction and a specific context
 func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output interface{}) error {
+	start := time.Now()
 	valType := reflect.TypeOf(output)
 	if valType.Kind() == reflect.Ptr {
 		valType = valType.Elem()
@@ -161,7 +163,7 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 		logger.Infow("xsql - execute query-one statement", "id", ctx.Value("id"),
 			"elapsed_time", elapsed.Milliseconds(),
 			"stmt", sql, "params", statement.params)
-	}(time.Now())
+	}(start)
 	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.GetParams()...)
 	if err != nil {
 		_ = tx.Rollback()

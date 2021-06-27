@@ -51,6 +51,7 @@ func InsertTx(tx *sql.Tx, model interface{}) error {
 
 // Insert adds given interface into corresponding table within a transaction and context
 func InsertTxContext(ctx context.Context, tx *sql.Tx, model interface{}) error {
+	start := time.Now()
 	val := reflect.ValueOf(model)
 	if val.Kind() == reflect.Ptr {
 		val = val.Elem()
@@ -78,7 +79,7 @@ func InsertTxContext(ctx context.Context, tx *sql.Tx, model interface{}) error {
 		logger.Infow("xsql - execute insert statement", "id", ctx.Value("id"),
 			"elapsed_time", elapsed.Milliseconds(),
 			"stmt", sqlScript, "params", args)
-	}(time.Now())
+	}(start)
 
 	insertCmd := NewStmt(sqlScript).With(map[string]interface{}{
 		"value": args,
@@ -124,6 +125,7 @@ func InsertBatchTx(tx *sql.Tx, model interface{}, batchSize int) error {
 // InsertBatch creates a batch of item in corresponding table of that interface within a transaction
 // and a specific context
 func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, batchSize int) error {
+	start := time.Now()
 	val := reflect.ValueOf(model)
 	if val.Kind() != reflect.Array && val.Kind() != reflect.Slice {
 		_ = tx.Rollback()
@@ -141,11 +143,8 @@ func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, ba
 		return fmt.Errorf(`size of column and size of field does not match`)
 	}
 
-	numberOfField := len(fieldNames)
 	insertedBatches := chunk(val, batchSize)
-
 	sqlColumns := strings.Join(columns, ",")
-	sqlParamOfEachItems := strRepeat("(", ")", "%s", ",", len(columns))
 
 	defer func(start time.Time) {
 		elapsed := time.Now().Sub(start)
@@ -153,16 +152,23 @@ func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, ba
 			"elapsed_time", elapsed.Milliseconds(),
 			"stmt", fmt.Sprintf(`INSERT INTO %s(%s) VALUES (:value)`, tableName, sqlColumns),
 			"total_item", val.Len(), "batch_size", batchSize)
-	}(time.Now())
+	}(start)
 
+	numberOfField := len(fieldNames)
+	paramPlaceHolder := strRepeat("(", ")", "%s", ",", len(columns))
+	sqlParams := strRepeat("", "", paramPlaceHolder, ",", batchSize)
 	for _, batch := range insertedBatches {
+
 		values := make([]interface{}, len(batch)*numberOfField)
 		for i, v := range batch {
 			for j, fieldName := range fieldNames {
 				values[i*numberOfField+j] = v.FieldByName(fieldName).Interface()
 			}
 		}
-		sqlParams := strRepeat("", "", sqlParamOfEachItems, ",", len(batch))
+
+		if batchSize != len(batch) {
+			sqlParams = strRepeat("", "", paramPlaceHolder, ",", batchSize)
+		}
 		realInsertSql := fmt.Sprintf(`INSERT INTO %s(%s) VALUES %s`,
 			tableName,
 			sqlColumns,

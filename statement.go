@@ -100,7 +100,7 @@ func (s *Statement) String() string {
 			key := runes[i+1 : j]
 			prm, ok := s.params[string(key)]
 			if !ok {
-				b.WriteString(string(key))
+				b.WriteString(":")
 				continue
 			}
 			size := getParamLen(prm)

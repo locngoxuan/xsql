@@ -21,12 +21,6 @@ func DeleteContext(ctx context.Context, statement Statement) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	if statement.expectedRows > 0 {
-		if i != statement.expectedRows {
-			_ = tx.Rollback()
-			return 0, ErrWrongNumberAffectedRow
-		}
-	}
 	err = tx.Commit()
 	if err != nil {
 		_ = tx.Rollback()
@@ -48,5 +42,15 @@ func DeleteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int6
 			"elapsed_time", elapsed.Milliseconds(),
 			"stmt", statement.String(), "params", statement.params)
 	}(time.Now())
-	return ExecuteTxContext(ctx, tx, statement)
+	i, err := ExecuteTxContext(ctx, tx, statement)
+	if err != nil {
+		return 0, err
+	}
+	if statement.expectedRows > 0 {
+		if i != statement.expectedRows {
+			_ = tx.Rollback()
+			return 0, ErrWrongNumberAffectedRow
+		}
+	}
+	return i, nil
 }
