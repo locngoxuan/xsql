@@ -37,10 +37,15 @@ func Open(opt DbOption) error {
 	}
 
 	if opt.Dialect == nil {
-		return fmt.Errorf(`db dialect is not configured`)
+		dialect, err = getDbDialect(opt.Driver)
+		if err != nil {
+			return err
+		}
 	}
 	dialect = opt.Dialect
-
+	if dialect == nil {
+		return fmt.Errorf(`db dialect is not configured`)
+	}
 	if opt.Logger == nil {
 		logger = DefaultLogger{}
 	} else {

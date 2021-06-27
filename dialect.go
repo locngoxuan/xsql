@@ -38,3 +38,17 @@ func (OracleDialect) Parameterizie(numberOfValue int) []string {
 	}
 	return rs
 }
+
+func getDbDialect(driver string) (Dialect, error) {
+	switch driver {
+	case "postgresql", "postgres", "pg":
+		return PostgreDialect{}, nil
+	case "mysql":
+		return MySQLDialect{}, nil
+	case "sqlite", "sqlite3":
+		return SQLiteDialect{}, nil
+	case "ora", "oracle", "gordor":
+		return OracleDialect{}, nil
+	}
+	return nil, fmt.Errorf(`no such dialect of %s`, driver)
+}
