@@ -50,7 +50,7 @@ func main() {
 	//insert batch
 	{
 		var examples []ExampleTable
-		for i := 0; i < 100; i++ {
+		for i := 0; i < 105; i++ {
 			s := fmt.Sprintf("Item with id = %d", i+2)
 			examples = append(examples, ExampleTable{
 				BaseModel: xsql.BaseModel{

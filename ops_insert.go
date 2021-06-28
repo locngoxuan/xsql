@@ -167,14 +167,13 @@ func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, ba
 		}
 
 		if batchSize != len(batch) {
-			sqlParams = strRepeat("", "", paramPlaceHolder, ",", batchSize)
+			sqlParams = strRepeat("", "", paramPlaceHolder, ",", len(batch))
 		}
 		realInsertSql := fmt.Sprintf(`INSERT INTO %s(%s) VALUES %s`,
 			tableName,
 			sqlColumns,
 			fmt.Sprintf(sqlParams, strToIntf(dialect.Parameterizie(len(values)))...),
 		)
-
 		i, err := execTxContext(ctx, tx, realInsertSql, values...)
 		if err != nil {
 			_ = tx.Rollback()
