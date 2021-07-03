@@ -8,9 +8,67 @@ import (
 	"time"
 )
 
-// ExecuteTxContext execute any statement within a transaction and an specific context
+// ExecuteTxContext executes any statement within a transaction and a specific context
 func ExecuteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
 	return execTxContext(ctx, tx, statement.String(), statement.GetParams()...)
+}
+
+// Executes executes a batch of statement
+func Executes(statement Statement, args ...map[string]interface{}) (int64, error) {
+	return UpdatesContext(context.Background(), statement)
+}
+
+// ExecutesContext executes a batch of statement within a specific context
+func ExecutesContext(ctx context.Context, statement Statement, args ...map[string]interface{}) (int64, error) {
+	tx, err := db.BeginTx(ctx, nil)
+	if err != nil {
+		return 0, err
+	}
+	i, err := UpdatesTxContext(ctx, tx, statement)
+	if err != nil {
+		return 0, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		_ = tx.Rollback()
+		return 0, err
+	}
+	return i, nil
+}
+
+// ExecutesTx executes a batch of statement within a transaction
+func ExecutesTx(tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
+	return ExecutesTxContext(context.Background(), tx, statement)
+}
+
+// ExecutesTxContext executes a batch of statement within a transaction and a specific context
+func ExecutesTxContext(ctx context.Context, tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
+	defer func(start time.Time) {
+		if statement.skipLog {
+			return
+		}
+		elapsed := time.Now().Sub(start)
+		logger.Infow("xsql - execute a batch of statement", "id", ctx.Value("id"),
+			"elapsed_time", elapsed.Milliseconds(),
+			"stmt", statement.RawSql(), "total_item", len(args))
+	}(time.Now())
+	rowsAffected := int64(0)
+	for _, arg := range args {
+		stmt := NewStmt(statement.RawSql()).With(arg)
+		i, err := ExecuteTxContext(ctx, tx, stmt.Get())
+		if err != nil {
+			_ = tx.Rollback()
+			return 0, err
+		}
+		rowsAffected += i
+	}
+	if statement.expectedRows > 0 {
+		if rowsAffected != statement.expectedRows {
+			_ = tx.Rollback()
+			return 0, ErrWrongNumberAffectedRow
+		}
+	}
+	return int64(rowsAffected), nil
 }
 
 // Count returns the total items in corresponding table of given interface

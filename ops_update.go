@@ -37,6 +37,9 @@ func UpdateTx(tx *sql.Tx, statement Statement) (int64, error) {
 // Update execute a sepecified update statement within a transaction and an specific context
 func UpdateTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
 	defer func(start time.Time) {
+		if statement.skipLog {
+			return
+		}
 		elapsed := time.Now().Sub(start)
 		logger.Infow("xsql - execute update statement", "id", ctx.Value("id"),
 			"elapsed_time", elapsed.Milliseconds(),
@@ -82,6 +85,9 @@ func UpdatesTx(tx *sql.Tx, statement Statement, args ...map[string]interface{}) 
 
 func UpdatesTxContext(ctx context.Context, tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
 	defer func(start time.Time) {
+		if statement.skipLog {
+			return
+		}
 		elapsed := time.Now().Sub(start)
 		logger.Infow("xsql - execute update-batch statement", "id", ctx.Value("id"),
 			"elapsed_time", elapsed.Milliseconds(),

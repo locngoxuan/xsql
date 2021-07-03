@@ -60,6 +60,9 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 
 	sql := statement.String()
 	defer func(start time.Time) {
+		if statement.skipLog {
+			return
+		}
 		elapsed := time.Now().Sub(start)
 		logger.Infow("xsql - execute query statement", "id", ctx.Value("id"),
 			"elapsed_time", elapsed.Milliseconds(),
@@ -159,6 +162,9 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 
 	sql := statement.String()
 	defer func(start time.Time) {
+		if statement.skipLog {
+			return
+		}
 		elapsed := time.Now().Sub(start)
 		logger.Infow("xsql - execute query-one statement", "id", ctx.Value("id"),
 			"elapsed_time", elapsed.Milliseconds(),

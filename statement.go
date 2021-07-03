@@ -13,6 +13,7 @@ type Statement struct {
 	params       map[string]interface{}
 	finalString  string
 	args         []interface{}
+	skipLog      bool
 }
 
 func NewStmt(str string) *Statement {
@@ -21,6 +22,7 @@ func NewStmt(str string) *Statement {
 		params:   make(map[string]interface{}),
 		args:     make([]interface{}, 0),
 		lastRune: 0,
+		skipLog:  false,
 	}
 	return s.AppendSql(str)
 }
@@ -32,6 +34,11 @@ func (s *Statement) ExpectedResult(i int) *Statement {
 
 func (s *Statement) Get() Statement {
 	return *s
+}
+
+func (s *Statement) SkipLog() *Statement {
+	s.skipLog = true
+	return s
 }
 
 func (s *Statement) AppendSql(str string) *Statement {
