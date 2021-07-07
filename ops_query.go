@@ -21,6 +21,7 @@ func QueryContext(ctx context.Context, statement Statement, output interface{}) 
 	}
 	err = QueryTxContext(ctx, tx, statement, output)
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 	_ = tx.Commit()
@@ -47,7 +48,6 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 	}
 
 	if valType.Kind() != reflect.Array && valType.Kind() != reflect.Slice {
-		_ = tx.Commit()
 		return fmt.Errorf("input is not either array or slice")
 	}
 
@@ -70,7 +70,6 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 	}(start)
 	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.GetParams()...)
 	if err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 
@@ -87,14 +86,12 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 		for i, v := range cols {
 			fieldName, ok := rm.Col2Field[v]
 			if !ok {
-				_ = tx.Rollback()
 				return fmt.Errorf(`no such field mapped to column %s`, v)
 			}
 			args[i] = elem.FieldByName(fieldName).Addr().Interface()
 		}
 		e := rows.Scan(args...)
 		if e != nil {
-			_ = tx.Rollback()
 			return e
 		}
 		val.Set(reflect.Append(val, ptr.Elem()))
@@ -102,7 +99,6 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 
 	err = rows.Err()
 	if err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 	return nil
@@ -121,6 +117,7 @@ func QueryOneContext(ctx context.Context, statement Statement, output interface{
 	}
 	err = QueryOneTxContext(ctx, tx, statement, output)
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 	_ = tx.Commit()
@@ -152,7 +149,6 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 
 	stmt, err := tx.Prepare(statement.String())
 	if err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 
@@ -172,7 +168,6 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 	}(start)
 	stmt, rows, err := queryTxContext(ctx, tx, sql, statement.GetParams()...)
 	if err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 
@@ -192,14 +187,12 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 		for i, v := range cols {
 			fieldName, ok := rm.Col2Field[v]
 			if !ok {
-				_ = tx.Rollback()
 				return fmt.Errorf(`no such field mapped to column %s`, v)
 			}
 			args[i] = elem.FieldByName(fieldName).Addr().Interface()
 		}
 		e := rows.Scan(args...)
 		if e != nil {
-			_ = tx.Rollback()
 			return e
 		}
 		numberOfRows++
@@ -208,7 +201,6 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 
 	err = rows.Err()
 	if err != nil {
-		_ = tx.Rollback()
 		return err
 	}
 

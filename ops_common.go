@@ -8,6 +8,25 @@ import (
 	"time"
 )
 
+func transact(db *sql.DB, txFunc func(*sql.Tx) error) (err error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			tx.Rollback()
+			panic(p) // re-throw panic after Rollback
+		} else if err != nil {
+			tx.Rollback() // err is non-nil; don't change it
+		} else {
+			err = tx.Commit() // err is nil; if Commit returns error update err
+		}
+	}()
+	err = txFunc(tx)
+	return err
+}
+
 // ExecuteTxContext executes any statement within a transaction and a specific context
 func ExecuteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
 	return execTxContext(ctx, tx, statement.String(), statement.GetParams()...)
@@ -15,7 +34,7 @@ func ExecuteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int
 
 // Executes executes a batch of statement
 func Executes(statement Statement, args ...map[string]interface{}) (int64, error) {
-	return UpdatesContext(context.Background(), statement)
+	return ExecutesContext(context.Background(), statement)
 }
 
 // ExecutesContext executes a batch of statement within a specific context
@@ -24,8 +43,9 @@ func ExecutesContext(ctx context.Context, statement Statement, args ...map[strin
 	if err != nil {
 		return 0, err
 	}
-	i, err := UpdatesTxContext(ctx, tx, statement)
+	i, err := ExecutesTxContext(ctx, tx, statement)
 	if err != nil {
+		_ = tx.Rollback()
 		return 0, err
 	}
 	err = tx.Commit()
@@ -57,14 +77,12 @@ func ExecutesTxContext(ctx context.Context, tx *sql.Tx, statement Statement, arg
 		stmt := NewStmt(statement.RawSql()).With(arg)
 		i, err := ExecuteTxContext(ctx, tx, stmt.Get())
 		if err != nil {
-			_ = tx.Rollback()
 			return 0, err
 		}
 		rowsAffected += i
 	}
 	if statement.expectedRows > 0 {
 		if rowsAffected != statement.expectedRows {
-			_ = tx.Rollback()
 			return 0, ErrWrongNumberAffectedRow
 		}
 	}
@@ -83,10 +101,12 @@ func CountContext(ctx context.Context, model interface{}) (int64, error) {
 	}
 	tx, err := db.BeginTx(ctx, nil)
 	if err != nil {
+		_ = tx.Rollback()
 		return 0, err
 	}
 	count, err := CountTxContext(ctx, tx, model)
 	if err != nil {
+		_ = tx.Rollback()
 		return 0, err
 	}
 	_ = tx.Commit()
@@ -149,6 +169,9 @@ func CountWithCondContext(ctx context.Context, statement Statement) (int64, erro
 	if err != nil {
 		return 0, err
 	}
+	defer func() {
+		_ = stmt.Close()
+	}()
 	row := stmt.QueryRowContext(ctx, statement.GetParams()...)
 	if row.Err() != nil {
 		return 0, row.Err()
@@ -166,7 +189,6 @@ func CountWithCondContext(ctx context.Context, statement Statement) (int64, erro
 func execTxContext(ctx context.Context, tx *sql.Tx, sql string, params ...interface{}) (int64, error) {
 	stmt, err := tx.PrepareContext(ctx, sql)
 	if err != nil {
-		_ = tx.Rollback()
 		return 0, err
 	}
 	defer func() {
@@ -174,12 +196,10 @@ func execTxContext(ctx context.Context, tx *sql.Tx, sql string, params ...interf
 	}()
 	rs, err := stmt.ExecContext(ctx, params...)
 	if err != nil {
-		_ = tx.Rollback()
 		return 0, err
 	}
 	i, err := rs.RowsAffected()
 	if err != nil {
-		_ = tx.Rollback()
 		return 0, err
 	}
 	return i, nil

@@ -17,6 +17,7 @@ func Insert(model interface{}) error {
 	}
 	err = InsertTx(tx, model)
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 	err = tx.Commit()
@@ -107,6 +108,7 @@ func InsertBatchContext(ctx context.Context, model interface{}, batchSize int) e
 	}
 	err = InsertBatchTxContext(ctx, tx, model, batchSize)
 	if err != nil {
+		_ = tx.Rollback()
 		return err
 	}
 	err = tx.Commit()
@@ -176,11 +178,9 @@ func InsertBatchTxContext(ctx context.Context, tx *sql.Tx, model interface{}, ba
 		)
 		i, err := execTxContext(ctx, tx, realInsertSql, values...)
 		if err != nil {
-			_ = tx.Rollback()
 			return err
 		}
 		if int(i) != len(batch) {
-			_ = tx.Rollback()
 			return ErrWrongNumberInserted
 		}
 	}

@@ -26,6 +26,7 @@ func DeleteByIdContext(ctx context.Context, model interface{}) (int64, error) {
 	}
 	i, err := DeleteByIdTxContext(ctx, tx, model)
 	if err != nil {
+		_ = tx.Rollback()
 		return 0, err
 	}
 	err = tx.Commit()
@@ -113,7 +114,6 @@ func DeleteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int6
 	}
 	if statement.expectedRows > 0 {
 		if i != statement.expectedRows {
-			_ = tx.Rollback()
 			return 0, ErrWrongNumberAffectedRow
 		}
 	}

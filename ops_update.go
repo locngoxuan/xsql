@@ -19,6 +19,7 @@ func UpdateContext(ctx context.Context, statement Statement) (int64, error) {
 	}
 	i, err := UpdateTxContext(ctx, tx, statement)
 	if err != nil {
+		_ = tx.Rollback()
 		return 0, err
 	}
 	err = tx.Commit()
@@ -45,13 +46,13 @@ func UpdateTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int6
 			"elapsed_time", elapsed.Milliseconds(),
 			"stmt", statement.String(), "params", statement.params)
 	}(time.Now())
+
 	i, err := ExecuteTxContext(ctx, tx, statement)
 	if err != nil {
 		return 0, err
 	}
 	if statement.expectedRows > 0 {
 		if i != statement.expectedRows {
-			_ = tx.Rollback()
 			return 0, ErrWrongNumberAffectedRow
 		}
 	}
