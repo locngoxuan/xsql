@@ -70,7 +70,7 @@ func queryTransaction(ctx context.Context, txFunc func(*sql.Tx) error) (err erro
 func execTransaction(ctx context.Context, txFunc func(*sql.Tx) (int64, error)) (i int64, err error) {
 	tx, err := db.BeginTx(ctx, &sql.TxOptions{
 		Isolation: isoLevel,
-		ReadOnly:  readOnly,
+		ReadOnly:  false,
 	})
 	if err != nil {
 		return

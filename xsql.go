@@ -45,6 +45,8 @@ func Open(opt DbOption) error {
 			return err
 		}
 	}
+	isoLevel = opt.IsoLevel
+	readOnly = opt.ReadOnly
 	dialect = opt.Dialect
 	if dialect == nil {
 		return fmt.Errorf(`db dialect is not configured`)
