@@ -15,17 +15,9 @@ func Query(statement Statement, output interface{}) error {
 
 // Query return a slice of records
 func QueryContext(ctx context.Context, statement Statement, output interface{}) error {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	err = QueryTxContext(ctx, tx, statement, output)
-	if err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	_ = tx.Commit()
-	return nil
+	return queryTransaction(ctx, func(tx *sql.Tx) error {
+		return QueryTxContext(ctx, tx, statement, output)
+	})
 }
 
 // Query return a slice of records. By giving a specific transaction, it may get a latest records
@@ -111,28 +103,18 @@ func QueryOne(statement Statement, output interface{}) error {
 
 // QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound
 func QueryOneContext(ctx context.Context, statement Statement, output interface{}) error {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-	err = QueryOneTxContext(ctx, tx, statement, output)
-	if err != nil {
-		_ = tx.Rollback()
-		return err
-	}
-	_ = tx.Commit()
-	return nil
+	return queryTransaction(ctx, func(tx *sql.Tx) error {
+		return QueryOneTxContext(ctx, tx, statement, output)
+	})
 }
 
-// QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound
-//
+// QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound.
 // This action is excuted within a transaction
 func QueryOneTx(tx *sql.Tx, statement Statement, output interface{}) error {
 	return QueryOneTxContext(context.Background(), tx, statement, output)
 }
 
-// QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound
-//
+// QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound.
 // This action is excuted within a transaction and a specific context
 func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output interface{}) error {
 	start := time.Now()

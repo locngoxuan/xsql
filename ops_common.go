@@ -8,23 +8,87 @@ import (
 	"time"
 )
 
-func transact(db *sql.DB, txFunc func(*sql.Tx) error) (err error) {
-	tx, err := db.Begin()
+// execTxContext is private function which executes given sql statement
+// and returns number of affected row
+func execTxContext(ctx context.Context, tx *sql.Tx, sql string, params ...interface{}) (int64, error) {
+	stmt, err := tx.PrepareContext(ctx, sql)
+	if err != nil {
+		return 0, err
+	}
+	defer func() {
+		_ = stmt.Close()
+	}()
+	rs, err := stmt.ExecContext(ctx, params...)
+	if err != nil {
+		return 0, err
+	}
+	i, err := rs.RowsAffected()
+	if err != nil {
+		return 0, err
+	}
+	return i, nil
+}
+
+// execTxContext is private function which returns result as *row
+// by executing sql statement with given params
+func queryTxContext(ctx context.Context, tx *sql.Tx, sql string, params ...interface{}) (*sql.Stmt, *sql.Rows, error) {
+	stmt, err := tx.PrepareContext(ctx, sql)
+	if err != nil {
+		return nil, nil, err
+	}
+	rows, err := stmt.QueryContext(ctx, params...)
+	if err != nil {
+		return nil, nil, err
+	}
+	return stmt, rows, nil
+}
+
+func queryTransaction(ctx context.Context, txFunc func(*sql.Tx) error) (err error) {
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{
+		Isolation: isoLevel,
+		ReadOnly:  readOnly,
+	})
 	if err != nil {
 		return
 	}
 	defer func() {
 		if p := recover(); p != nil {
-			tx.Rollback()
+			_ = tx.Rollback()
 			panic(p) // re-throw panic after Rollback
 		} else if err != nil {
-			tx.Rollback() // err is non-nil; don't change it
+			_ = tx.Rollback() // err is non-nil; don't change it
 		} else {
 			err = tx.Commit() // err is nil; if Commit returns error update err
+			if err != nil {
+				_ = tx.Rollback()
+			}
 		}
 	}()
-	err = txFunc(tx)
-	return err
+	return txFunc(tx)
+}
+
+func execTransaction(ctx context.Context, txFunc func(*sql.Tx) (int64, error)) (i int64, err error) {
+	tx, err := db.BeginTx(ctx, &sql.TxOptions{
+		Isolation: isoLevel,
+		ReadOnly:  readOnly,
+	})
+	if err != nil {
+		return
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = tx.Rollback()
+			panic(p) // re-throw panic after Rollback
+		} else if err != nil {
+			_ = tx.Rollback() // err is non-nil; don't change it
+		} else {
+			err = tx.Commit() // err is nil; if Commit returns error update err
+			if err != nil {
+				_ = tx.Rollback()
+			}
+		}
+	}()
+	return txFunc(tx)
 }
 
 // ExecuteTxContext executes any statement within a transaction and a specific context
@@ -32,44 +96,31 @@ func ExecuteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int
 	return execTxContext(ctx, tx, statement.String(), statement.GetParams()...)
 }
 
-// Executes executes a batch of statement
-func Executes(statement Statement, args ...map[string]interface{}) (int64, error) {
-	return ExecutesContext(context.Background(), statement)
+// ExecuteBatch executes a batch of statement
+func ExecuteBatch(statement Statement, args ...map[string]interface{}) (int64, error) {
+	return ExecuteBatchContext(context.Background(), statement)
 }
 
-// ExecutesContext executes a batch of statement within a specific context
-func ExecutesContext(ctx context.Context, statement Statement, args ...map[string]interface{}) (int64, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	i, err := ExecutesTxContext(ctx, tx, statement)
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	return i, nil
+// ExecuteBatchContext executes a batch of statement within a specific context
+func ExecuteBatchContext(ctx context.Context, statement Statement, args ...map[string]interface{}) (int64, error) {
+	return execTransaction(ctx, func(tx *sql.Tx) (int64, error) {
+		return ExecuteBatchTxContext(ctx, tx, statement)
+	})
 }
 
-// ExecutesTx executes a batch of statement within a transaction
-func ExecutesTx(tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
-	return ExecutesTxContext(context.Background(), tx, statement)
+// ExecuteBatchTx executes a batch of statement within a transaction
+func ExecuteBatchTx(tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
+	return ExecuteBatchTxContext(context.Background(), tx, statement)
 }
 
-// ExecutesTxContext executes a batch of statement within a transaction and a specific context
-func ExecutesTxContext(ctx context.Context, tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
+// ExecuteBatchTxContext executes a batch of statement within a transaction and a specific context
+func ExecuteBatchTxContext(ctx context.Context, tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
 	defer func(start time.Time) {
 		if statement.skipLog {
 			return
 		}
-		elapsed := time.Now().Sub(start)
-		logger.Infow("xsql - execute a batch of statement", "id", ctx.Value("id"),
-			"elapsed_time", elapsed.Milliseconds(),
+		elapsed := time.Since(start)
+		logger.Infow("xsql - execute a batch of statement", "id", ctx.Value("id"), "elapsed_time", elapsed.Milliseconds(),
 			"stmt", statement.RawSql(), "total_item", len(args))
 	}(time.Now())
 	rowsAffected := int64(0)
@@ -182,39 +233,4 @@ func CountWithCondContext(ctx context.Context, statement Statement) (int64, erro
 		return 0, err
 	}
 	return int64(count), nil
-}
-
-// execTxContext is private function which executes given sql statement
-// and returns number of affected row
-func execTxContext(ctx context.Context, tx *sql.Tx, sql string, params ...interface{}) (int64, error) {
-	stmt, err := tx.PrepareContext(ctx, sql)
-	if err != nil {
-		return 0, err
-	}
-	defer func() {
-		_ = stmt.Close()
-	}()
-	rs, err := stmt.ExecContext(ctx, params...)
-	if err != nil {
-		return 0, err
-	}
-	i, err := rs.RowsAffected()
-	if err != nil {
-		return 0, err
-	}
-	return i, nil
-}
-
-// execTxContext is private function which returns result as *row
-// by executing sql statement with given params
-func queryTxContext(ctx context.Context, tx *sql.Tx, sql string, params ...interface{}) (*sql.Stmt, *sql.Rows, error) {
-	stmt, err := tx.PrepareContext(ctx, sql)
-	if err != nil {
-		return nil, nil, err
-	}
-	rows, err := stmt.QueryContext(ctx, params...)
-	if err != nil {
-		return nil, nil, err
-	}
-	return stmt, rows, nil
 }

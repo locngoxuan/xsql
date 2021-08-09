@@ -33,6 +33,8 @@ type DbOption struct {
 	MaxIdleConns int
 	MaxIdleTime  time.Duration
 	MaxLifeTime  time.Duration
+	IsoLevel     sql.IsolationLevel
+	ReadOnly     bool
 	Dialect
 	Logger
 }

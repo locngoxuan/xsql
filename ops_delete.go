@@ -82,6 +82,7 @@ func DeleteContext(ctx context.Context, statement Statement) (int64, error) {
 	}
 	i, err := DeleteTxContext(ctx, tx, statement)
 	if err != nil {
+		_ = tx.Rollback()
 		return 0, err
 	}
 	err = tx.Commit()

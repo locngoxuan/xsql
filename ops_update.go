@@ -13,21 +13,9 @@ func Update(statement Statement) (int64, error) {
 
 // Update execute a sepecified update statement
 func UpdateContext(ctx context.Context, statement Statement) (int64, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	i, err := UpdateTxContext(ctx, tx, statement)
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	return i, nil
+	return execTransaction(ctx, func(tx *sql.Tx) (int64, error) {
+		return UpdateTxContext(ctx, tx, statement)
+	})
 }
 
 // Update execute a sepecified update statement within a transaction
@@ -41,9 +29,8 @@ func UpdateTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int6
 		if statement.skipLog {
 			return
 		}
-		elapsed := time.Now().Sub(start)
-		logger.Infow("xsql - execute update statement", "id", ctx.Value("id"),
-			"elapsed_time", elapsed.Milliseconds(),
+		elapsed := time.Since(start)
+		logger.Infow("xsql - execute update statement", "id", ctx.Value("id"), "elapsed_time", elapsed.Milliseconds(),
 			"stmt", statement.String(), "params", statement.params)
 	}(time.Now())
 

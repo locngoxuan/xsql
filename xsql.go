@@ -10,6 +10,9 @@ var (
 	dialect Dialect
 	db      *sql.DB
 	logger  Logger
+
+	isoLevel sql.IsolationLevel = sql.LevelDefault
+	readOnly bool               = false
 )
 
 func BeginTx() (*sql.Tx, error) {
