@@ -20,21 +20,9 @@ func DeleteByIdTx(tx *sql.Tx, model interface{}) (int64, error) {
 
 // DeleteByIdTx deletes specific entity by id in a specific context
 func DeleteByIdContext(ctx context.Context, model interface{}) (int64, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	i, err := DeleteByIdTxContext(ctx, tx, model)
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	return i, nil
+	return execTransaction(ctx, func(tx *sql.Tx) (int64, error) {
+		return DeleteByIdTxContext(ctx, tx, model)
+	})
 }
 
 // DeleteByIdTx deletes specific entity by id within transaction and a specific context
@@ -76,21 +64,9 @@ func Delete(statement Statement) (int64, error) {
 
 // Delete execute a sepecified delete statement
 func DeleteContext(ctx context.Context, statement Statement) (int64, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	i, err := DeleteTxContext(ctx, tx, statement)
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	return i, nil
+	return execTransaction(ctx, func(tx *sql.Tx) (int64, error) {
+		return DeleteTxContext(ctx, tx, statement)
+	})
 }
 
 // Delete execute a sepecified delete statement within a transaction

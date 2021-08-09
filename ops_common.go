@@ -150,18 +150,9 @@ func CountContext(ctx context.Context, model interface{}) (int64, error) {
 	if model == nil {
 		return 0, fmt.Errorf("given model is nil")
 	}
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	count, err := CountTxContext(ctx, tx, model)
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	_ = tx.Commit()
-	return int64(count), nil
+	return execTransaction(ctx, func(tx *sql.Tx) (int64, error) {
+		return CountTxContext(ctx, tx, model)
+	})
 }
 
 func CountTx(tx *sql.Tx, model interface{}) (int64, error) {
