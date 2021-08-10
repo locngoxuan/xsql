@@ -51,20 +51,9 @@ func Updates(statement Statement, args ...map[string]interface{}) (int64, error)
 }
 
 func UpdatesContext(ctx context.Context, statement Statement, args ...map[string]interface{}) (int64, error) {
-	tx, err := db.BeginTx(ctx, nil)
-	if err != nil {
-		return 0, err
-	}
-	i, err := UpdatesTxContext(ctx, tx, statement)
-	if err != nil {
-		return 0, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		_ = tx.Rollback()
-		return 0, err
-	}
-	return i, nil
+	return execTransaction(ctx, func(tx *sql.Tx) (int64, error) {
+		return UpdatesTxContext(ctx, tx, statement)
+	})
 }
 
 func UpdatesTx(tx *sql.Tx, statement Statement, args ...map[string]interface{}) (int64, error) {
