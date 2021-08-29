@@ -98,7 +98,7 @@ func QueryTxContext(ctx context.Context, tx *sql.Tx, statement Statement, output
 
 // QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound
 func QueryOne(statement Statement, output interface{}) error {
-	return QueryContext(context.Background(), statement, output)
+	return QueryOneContext(context.Background(), statement, output)
 }
 
 // QueryOne will returns an item fit given statement if it exist. Otherwise, it return ErrNotFound
