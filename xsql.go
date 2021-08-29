@@ -39,6 +39,7 @@ func Open(opt DbOption) error {
 		db.SetConnMaxLifetime(opt.MaxLifeTime)
 	}
 
+	dialect = opt.Dialect
 	if opt.Dialect == nil {
 		dialect, err = getDbDialect(opt.Driver)
 		if err != nil {
@@ -47,7 +48,6 @@ func Open(opt DbOption) error {
 	}
 	isoLevel = opt.IsoLevel
 	readOnly = opt.ReadOnly
-	dialect = opt.Dialect
 	if dialect == nil {
 		return fmt.Errorf(`db dialect is not configured`)
 	}

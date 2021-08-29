@@ -91,6 +91,18 @@ func execTransaction(ctx context.Context, txFunc func(*sql.Tx) (int64, error)) (
 	return txFunc(tx)
 }
 
+// ExecuteTxContext executes any statement
+func Execute(statement Statement) (int64, error) {
+	return ExecuteContext(context.Background(), statement)
+}
+
+// ExecuteTxContext executes any statement in a specific context
+func ExecuteContext(ctx context.Context, statement Statement) (int64, error) {
+	return execTransaction(ctx, func(t *sql.Tx) (int64, error) {
+		return ExecuteTxContext(ctx, t, statement)
+	})
+}
+
 // ExecuteTxContext executes any statement within a transaction and a specific context
 func ExecuteTxContext(ctx context.Context, tx *sql.Tx, statement Statement) (int64, error) {
 	return execTxContext(ctx, tx, statement.String(), statement.GetParams()...)

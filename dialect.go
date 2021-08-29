@@ -41,7 +41,7 @@ func (OracleDialect) Parameterizie(numberOfValue int) []string {
 
 func getDbDialect(driver string) (Dialect, error) {
 	switch driver {
-	case "postgresql", "postgres", "pg":
+	case "postgresql", "postgres", "pg", "psql":
 		return PostgreDialect{}, nil
 	case "mysql":
 		return MySQLDialect{}, nil
