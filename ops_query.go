@@ -129,15 +129,6 @@ func QueryOneTxContext(ctx context.Context, tx *sql.Tx, statement Statement, out
 
 	rm := getMapper(valType)
 
-	stmt, err := tx.Prepare(statement.String())
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = stmt.Close()
-	}()
-
 	sql := statement.String()
 	defer func(start time.Time) {
 		if statement.skipLog {
