@@ -2,9 +2,11 @@
 
 ## Introduction
 
-`xsql` is a simple library in order to support us build up a application which is able to switch among database vendor easily by configuring `xsql.Dialect`.
+`xsql` is a simple library in order to support us build up a application which:
+- Use native sql statement but need to switch database vendors back and forth
+- Use application-based id generator
 
-Purpose of `xsql.Dialect` is providing an interface for replacing `name place holder` by specific parameter place holder of each database vendor. 
+This implementation uses `xsql.Dialect` to provide an interface for replacing `name place holder` by specific parameter place holder of each database vendor. 
 
 Even `xsql` does not intend to be built up as an ORM library, but it also supports: 
 
