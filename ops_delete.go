@@ -38,7 +38,7 @@ func DeleteByIdTxContext(ctx context.Context, tx *sql.Tx, model interface{}) (in
 		"id", "Id", "ID",
 	} {
 		field := val.FieldByName(k)
-		if !field.IsValid() || field.IsNil() {
+		if !field.IsValid() {
 			continue
 		}
 		id = field.Interface()
